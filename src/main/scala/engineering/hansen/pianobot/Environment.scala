@@ -2,6 +2,7 @@ package engineering.hansen.pianobot
 
 import java.nio.file.{Paths, Files}
 import java.io.{InputStream, PrintWriter}
+import java.sql.{Connection, DriverManager, ResultSet, SQLException, Statement}
 import org.apache.logging.log4j.{Logger, LogManager}
 import scala.io._
 
@@ -115,11 +116,43 @@ object Environment {
     log4jfile
   }
 
+  private def initializeSQLite = {
+    Class.forName("org.sqlite.JDBC")
+
+    val dbpath = Paths.get(getAppdir + "pianobot.db")
+    Files.exists(dbpath) match {
+      case false =>
+        var c: Connection = null
+        try {
+          val jdbcstr = "jdbc:sqlite:" + getAppdir + "pianobot.db"
+          c = DriverManager.getConnection(jdbcstr)
+        }
+        catch {
+          case _ : Throwable =>
+            logger.fatal("Could not initialize an empty database.")
+            printerr("Could not initialize database.  Aborting.")
+            System.exit(-1)
+        }
+        finally {
+          c.close()
+        }
+      case true =>
+        Files.isDirectory(dbpath) match {
+          case true =>
+            logger.fatal("pianobot.db is a directory, not a file")
+            printerr("pianobot.db is a directory, not a file. Aborting.")
+            System.exit(-1)
+          case false => ;
+        }
+    }
+  }
+
   val homedir = getHomedir
   val appdir = getAppdir
   val log4jfile = getLog4jConf
   val logger = LogManager.getLogger(getClass)
   val conffile = getConfFile
+  initializeSQLite
 
   logger.info("Successfully finished startup sequence.")
 
