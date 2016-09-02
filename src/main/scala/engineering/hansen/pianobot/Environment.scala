@@ -9,7 +9,7 @@ import scala.io._
 object Environment {
   private def printerr(x: String) = System.err.println(x)
 
-  def getHomedir = {
+  val homedir =
     sys.props.get("user.home") match {
       case None =>
         printerr("user.home is not defined.  Aborting.")
@@ -30,11 +30,10 @@ object Environment {
           }
         }
     }
-  }
 
-  def getAppdir = {
-    val appdir = getHomedir + ".pianobot" + java.io.File.separator
-    val appdirPath = Paths.get(appdir)
+  val appdir = {
+    val appdir_ = homedir + ".pianobot" + java.io.File.separator
+    val appdirPath = Paths.get(appdir_)
     Files.exists(appdirPath) match {
       case false =>
         try {
@@ -42,12 +41,12 @@ object Environment {
         }
         catch {
           case _: Throwable =>
-            printerr("Could not create " + appdir + ".  Aborting.")
+            printerr("Could not create " + appdir_ + ".  Aborting.")
             System.exit(-1)
             ""
         }
       case true => Files.isDirectory(appdirPath) match {
-        case true => appdir
+        case true => appdir_
         case false =>
           printerr("Your ~/.pianobot is a file, not a directory.  Aborting.")
           System.exit(-1)
@@ -56,9 +55,9 @@ object Environment {
     }
   }
 
-  private def getConfFile = {
-    val confFile = getAppdir + "pianobot.conf"
-    val confFilePath = Paths.get(confFile)
+  val confFile = {
+    val confFile_ = appdir + "pianobot.conf"
+    val confFilePath = Paths.get(confFile_)
     Files.exists(confFilePath) match {
       case false =>
         var istream : InputStream = null
@@ -77,11 +76,11 @@ object Environment {
         }
       case true => ;
     }
-    confFile
+    confFile_
   }
 
-  private def getLog4jConf = {
-    val log4jfile = getAppdir + "log4j2.xml"
+  val log4jFile = {
+    val log4jfile = appdir + "log4j2.xml"
     val log4jfilePath = Paths.get(log4jfile)
 
     Files.exists(log4jfilePath) match {
@@ -112,20 +111,21 @@ object Environment {
       case None => sys.props("log4j.configurationFile") = log4jfile
       case Some(x) => ;
     }
-
     log4jfile
   }
 
-  private def initializeSQLite = {
+  val logger = LogManager.getLogger(getClass)
+
+  val musicDB = {
     Class.forName("org.sqlite.JDBC")
 
-    val dbpath = Paths.get(getAppdir + "pianobot.db")
+    val dbpath = Paths.get(appdir + "pianobot.db")
     Files.exists(dbpath) match {
       case false =>
-        var c: Connection = null
         try {
-          val jdbcstr = "jdbc:sqlite:" + getAppdir + "pianobot.db"
-          c = DriverManager.getConnection(jdbcstr)
+          val jdbcstr = "jdbc:sqlite:" + appdir + "pianobot.db"
+          val c = DriverManager.getConnection(jdbcstr)
+          c.close
         }
         catch {
           case _ : Throwable =>
@@ -134,7 +134,9 @@ object Environment {
             System.exit(-1)
         }
         finally {
-          c.close()
+          // only way it gets here is if getConnection fails, in
+          // which case c is undefined, hence doesn't need to be
+          // closed
         }
       case true =>
         Files.isDirectory(dbpath) match {
@@ -145,18 +147,10 @@ object Environment {
           case false => ;
         }
     }
+    dbpath
   }
 
-  val homedir = getHomedir
-  val appdir = getAppdir
-  val log4jfile = getLog4jConf
-  val logger = LogManager.getLogger(getClass)
-  val conffile = getConfFile
-  initializeSQLite
-
   logger.info("Successfully finished startup sequence.")
-
-
 
   def HW() = { System.err.println(homedir) }
 }
