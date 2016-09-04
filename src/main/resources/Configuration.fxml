@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox id="vbox" alignment="TOP_CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="engineering.hansen.pianobot.GetConfig">
+   <children>
+      <GridPane hgap="10.0" vgap="10.0">
+        <columnConstraints>
+          <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="150.0" />
+          <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+        </columnConstraints>
+        <rowConstraints>
+          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        </rowConstraints>
+         <children>
+            <Label text="Admin nick" />
+            <Label text="Bot nick" GridPane.rowIndex="1" />
+            <Label text="Bot password" GridPane.rowIndex="2" />
+            <Label text="MP3 directory" GridPane.rowIndex="3" />
+            <Label text="IRC server" GridPane.rowIndex="4" />
+            <Label text="Channel" GridPane.rowIndex="5" />
+            <TextField fx:id="adminNick" maxHeight="-Infinity" maxWidth="1.7976931348623157E308"
+                        promptText="Enter the admin nick here" GridPane.columnIndex="1"/>
+            <TextField fx:id="botNick" maxHeight="-Infinity" maxWidth="1.7976931348623157E308"
+                       promptText="Enter the bot nick here" GridPane.columnIndex="1" GridPane.halignment="RIGHT"
+                       GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" GridPane.vgrow="ALWAYS"/>
+            <TextField fx:id="botPassword" promptText="Enter the bot's password here" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <TextField fx:id="mp3dir" promptText="Enter your MP3 directory here" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+            <ComboBox fx:id="cbIRC" maxWidth="1.7976931348623157E308" prefWidth="150.0" promptText="Enter the IRC server here" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="4" GridPane.vgrow="NEVER">
+            </ComboBox>
+            <ComboBox fx:id="cbChan" maxWidth="1.7976931348623157E308" prefWidth="150.0" promptText="Enter the channel here" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="5" GridPane.vgrow="NEVER">
+            </ComboBox>
+         </children>
+         <padding>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </padding>
+      </GridPane>
+      <Label fx:id="helpText" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" text="Enter the admin's IRC nick">
+         <VBox.margin>
+            <Insets top="20.0" />
+         </VBox.margin>
+         <font>
+            <Font name="System Italic" size="12.0" />
+         </font>
+         <padding>
+            <Insets left="10.0" />
+         </padding>
+      </Label>
+      <HBox alignment="CENTER_RIGHT" fillHeight="false">
+         <children>
+            <Button fx:id="ok" disable="true" mnemonicParsing="false" text="Save">
+               <HBox.margin>
+                  <Insets left="10.0" right="10.0" top="25.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="cancel" mnemonicParsing="false" text="Cancel">
+               <HBox.margin>
+                  <Insets left="10.0" right="10.0" top="25.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
+   </children>
+   <padding>
+      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+   </padding>
+</VBox>

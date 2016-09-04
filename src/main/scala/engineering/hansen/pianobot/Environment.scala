@@ -1,7 +1,7 @@
 package engineering.hansen.pianobot
 
 import java.nio.file.{Paths, Files}
-import java.io.{InputStream, PrintWriter}
+import java.io.{InputStream, PrintWriter, File}
 import java.sql.{Connection, DriverManager, ResultSet, SQLException, Statement}
 import org.apache.logging.log4j.{Logger, LogManager}
 import scala.io._
@@ -9,8 +9,9 @@ import scala.io._
 object Environment {
   private def printerr(x: String) = System.err.println(x)
 
-  val homedir =
-    sys.props.get("user.home") match {
+  var logger : Logger = _
+
+  val homedir = sys.props.get("user.home") match {
       case None =>
         printerr("user.home is not defined.  Aborting.")
         System.exit(-1)
@@ -31,53 +32,25 @@ object Environment {
         }
     }
 
-  val appdir = {
-    val appdir_ = homedir + ".pianobot" + java.io.File.separator
-    val appdirPath = Paths.get(appdir_)
-    Files.exists(appdirPath) match {
+  val appdir = Files.exists(Paths.get(homedir + ".pianobot" + File.separator)) match {
       case false =>
         try {
-          Files.createDirectory(appdirPath)
+          Files.createDirectory(Paths.get(homedir + ".pianobot" + File.separator))
         }
         catch {
           case _: Throwable =>
-            printerr("Could not create " + appdir_ + ".  Aborting.")
+            printerr("Could not create " + homedir + ".pianobot" + File.separator + ".  Aborting.")
             System.exit(-1)
             ""
         }
-      case true => Files.isDirectory(appdirPath) match {
-        case true => appdir_
+      case true => Files.isDirectory(Paths.get(homedir + ".pianobot" + File.separator)) match {
+        case true => homedir + ".pianobot" + File.separator
         case false =>
           printerr("Your ~/.pianobot is a file, not a directory.  Aborting.")
           System.exit(-1)
           ""
       }
     }
-  }
-
-  val confFile = {
-    val confFile_ = appdir + "pianobot.conf"
-    val confFilePath = Paths.get(confFile_)
-    Files.exists(confFilePath) match {
-      case false =>
-        var istream : InputStream = null
-        try {
-          istream = getClass.getResourceAsStream("/pianobotconf.sample")
-          Files.copy(istream, confFilePath)
-        }
-        catch {
-          case _ : Throwable =>
-            printerr("Error copying default pianobot configuration file.")
-            printerr("Aborting.")
-            System.exit(-1)
-        }
-        finally {
-          istream.close()
-        }
-      case true => ;
-    }
-    confFile_
-  }
 
   val log4jFile = {
     val log4jfile = appdir + "log4j2.xml"
@@ -85,6 +58,7 @@ object Environment {
 
     Files.exists(log4jfilePath) match {
       case false =>
+        println("log4j file doesn't exist!")
         var istream : InputStream = null
         var pw : PrintWriter = null
         try {
@@ -104,53 +78,34 @@ object Environment {
           if (pw != null) pw.close()
         }
 
-      case true => ;
+      case true => println("Found it")
     }
 
     sys.props.get("log4j.configurationFile") match {
       case None => sys.props("log4j.configurationFile") = log4jfile
-      case Some(x) => ;
+      case Some(x) => x;
     }
-    log4jfile
+    logger = LogManager.getLogger(getClass)
   }
 
-  val logger = LogManager.getLogger(getClass)
+  val confFile = Files.exists(Paths.get(appdir + "pianobot.conf")) match {
+    case false => new GetConfig().runme()
+      appdir + "pianobot.conf"
+    case true => appdir + "pianobot.conf";
+  }
 
-  val musicDB = {
-    Class.forName("org.sqlite.JDBC")
-
-    val dbpath = Paths.get(appdir + "pianobot.db")
-    Files.exists(dbpath) match {
-      case false =>
-        try {
-          val jdbcstr = "jdbc:sqlite:" + appdir + "pianobot.db"
-          val c = DriverManager.getConnection(jdbcstr)
-          c.close
-        }
-        catch {
-          case _ : Throwable =>
-            logger.fatal("Could not initialize an empty database.")
-            printerr("Could not initialize database.  Aborting.")
-            System.exit(-1)
-        }
-        finally {
-          // only way it gets here is if getConnection fails, in
-          // which case c is undefined, hence doesn't need to be
-          // closed
-        }
+  val musicDB = Files.exists(Paths.get(appdir + "pianobot.db")) match {
+      case false => Utilities.initializeDB()
+        appdir + "pianobot.db"
       case true =>
-        Files.isDirectory(dbpath) match {
+        Files.isDirectory(Paths.get(appdir + "pianobot.db")) match {
           case true =>
-            logger.fatal("pianobot.db is a directory, not a file")
             printerr("pianobot.db is a directory, not a file. Aborting.")
             System.exit(-1)
-          case false => ;
+            appdir + "pianobot.db"
+          case false => appdir + "pianobot.db"
         }
     }
-    dbpath
-  }
 
-  logger.info("Successfully finished startup sequence.")
-
-  def HW() = { System.err.println(homedir) }
+  def initialize() = { }
 }
