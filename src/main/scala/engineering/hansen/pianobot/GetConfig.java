@@ -111,6 +111,7 @@ public class GetConfig extends Application implements Initializable {
             pw.println("password    = " + botPassword.getText());
             pw.println("IRC server  = " + cbIRC.getValue());
             pw.println("IRC channel = " + cbChan.getValue());
+	    pw.println("repertoire  = " + mp3dir.getText());
             pw.close();
         }
         catch (Exception e) {

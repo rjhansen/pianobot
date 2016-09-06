@@ -66,6 +66,7 @@ object Environment {
           pw = new PrintWriter(log4jfile)
           for (i <- Source.fromInputStream(istream).getLines())
             pw.println(i.replace("LOG4JCONF_FILE", appdir + "pianobot.log"))
+          log4jfile
         }
         catch {
           case _ : Throwable =>
@@ -78,7 +79,7 @@ object Environment {
           if (pw != null) pw.close()
         }
 
-      case true => println("Found it")
+      case true => log4jfile
     }
 
     sys.props.get("log4j.configurationFile") match {
@@ -95,15 +96,15 @@ object Environment {
   }
 
   val options = {
-    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([A-Za-z0-9_\.]+)\s*(#.*)?$""".r
-    val validOptions = scala.collection.immutable.Set("admin", "bot", "password", "irc server", "irc channel")
+    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([/\\A-Za-z0-9_\.]+)\s*(#.*)?$""".r
+    val validOptions = scala.collection.immutable.Set("admin", "bot", "password", "irc server", "irc channel", "repertoire")
     (for (regex(key, value, _) <- scala.io.Source.fromFile(confFile).getLines()
           if validOptions.contains(key.trim.toLowerCase)
     ) yield (key.trim.toLowerCase(), value.trim)).toMap
   }
 
   val musicDB = Files.exists(Paths.get(appdir + "pianobot.db")) match {
-      case false => Utilities.initializeDB()
+      case false => SQLUtilities.initializeDB()
         appdir + "pianobot.db"
       case true =>
         Files.isDirectory(Paths.get(appdir + "pianobot.db")) match {

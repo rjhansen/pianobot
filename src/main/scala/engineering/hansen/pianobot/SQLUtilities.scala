@@ -6,14 +6,16 @@ import org.apache.logging.log4j.LogManager
 import scala.collection.JavaConverters._
 import com.mpatric.mp3agic.{ID3v1, ID3v2, Mp3File}
 
-object Utilities {
+object SQLUtilities {
   private val logger = LogManager.getLogger(getClass)
+  private val jdbcstr = s"jdbc:sqlite:${Environment.appdir}pianobot.db"
+  private var connection = DriverManager.getConnection(jdbcstr)
 
   def initializeDB() : Unit = {
     try {
+      connection.close()
       Files.deleteIfExists(Paths.get(Environment.appdir + "pianobot.db"))
-      val jdbcstr = "jdbc:sqlite:" + Environment.appdir + "pianobot.db"
-      val connection = DriverManager.getConnection(jdbcstr)
+      connection = DriverManager.getConnection(jdbcstr)
       connection.createStatement().executeUpdate(
         """
           |CREATE TABLE people
@@ -88,15 +90,16 @@ object Utilities {
       )
       logger.info("created new table 'songs'")
       connection.createStatement().executeUpdate(
-        "INSERT INTO people (nick) VALUES ('" + Environment.options("admin") + "')")
+        "INSERT INTO people (nick) VALUES ('" +
+          Environment.options("admin") + "')")
       logger.info("inserted admin into people")
 
       connection.createStatement().executeUpdate(
-        """INSERT INTO capabilities (name) VALUES ('admin')""".stripMargin
+        "INSERT INTO capabilities (name) VALUES ('admin')"
       )
       logger.info("inserted admin capability")
       connection.createStatement().executeUpdate(
-        """INSERT INTO songwriters (name) VALUES ('Claude Debussy')""".stripMargin
+        "INSERT INTO songwriters (name) VALUES ('Claude Debussy')"
       )
       logger.info("added Claude Debussy")
       connection.createStatement().executeUpdate(
@@ -113,13 +116,23 @@ object Utilities {
           |INSERT INTO capabilityMap (peopleID, capabilityID)
           |SELECT people.id, capabilities.id
           |FROM people, capabilities
-          |WHERE people.nick = '""".stripMargin + Environment.options("admin") +
+          |WHERE people.nick = '""".stripMargin +
+          Environment.options("admin") +
           "' AND capabilities.name = 'admin'"
       )
       logger.info("gave the admin the admin bit")
-      connection.close()
+      logger.info("reading in mp3s from " +
+        Environment.options("repertoire"))
+      populateMP3s(Environment.options("repertoire"))
+      val countstr = "SELECT COUNT(*) FROM songs"
+      val songCount = connection.createStatement().executeQuery(countstr).getInt(1)
+      val artiststr = "SELECT COUNT(*) FROM songwriters"
+      val songwriterCount = connection.createStatement().executeQuery(artiststr).getInt(1)
+      logger.info(s"repertoire is $songCount songs by " +
+        s"$songwriterCount artists")
     } catch {
-      case e: Throwable => logger.fatal("Could not initialize db: " + e.toString)
+      case e: Throwable => logger.fatal("Could not initialize db: " +
+          e.toString)
         System.exit(1)
     }
   }
@@ -169,30 +182,37 @@ object Utilities {
 
   def populateMP3s(root: String) {
     val music = makeMP3Maps(root)
-
     val jdbcstr = "jdbc:sqlite:" + Environment.appdir + "pianobot.db"
-    val conn = DriverManager.getConnection(jdbcstr)
-
-    val artistQuery = conn.prepareStatement("INSERT OR IGNORE INTO songwriters (name) VALUES " +
+    val artistQuery = connection.prepareStatement(
+      "INSERT OR IGNORE INTO songwriters (name) VALUES " +
       music.keys.toArray.map((_: String) => "(?)").mkString(", "))
     for ((artist, index) <- music.keys.zip(Stream from 1))
       artistQuery.setString(index, artist)
     artistQuery.execute()
 
-    """
-      |INSERT INTO songs (byID, name, length)
-      |SELECT songwriters.id, 'Clair de Lune', 342
-      |FROM songwriters
-      |WHERE songwriters.name = 'Claude Debussy'
-    """.stripMargin
-
     for (artist <- music.keys) {
-      val foo = conn.prepareStatement("SELECT id FROM songwriters WHERE name=?")
+      val foo = connection.prepareStatement(
+        "SELECT id FROM songwriters WHERE name=?")
       foo.setString(1, artist)
       val artistId = foo.executeQuery().getInt("id")
-      val songQuery = conn.prepareStatement("INSERT OR IGNORE INTO songs (byID, name, length) VALUES " +
-        music.keys.toArray.map((_: String) => s"($artistId, ?, ?)").mkString(", "))
+      val sb = new StringBuilder()
+      sb.append("INSERT OR IGNORE INTO songs (byID, name, length) VALUES ")
+      sb.append(
+        List.fill(
+          music(artist).keys.size)
+          (s"($artistId, ?, ?)").mkString(", "))
+
+      val statement = connection.prepareStatement(sb.toString)
+      var index = 1
+      for ((song, length) <- music(artist)) {
+        statement.setString(index, song)
+        statement.setInt(index + 1, length)
+        index += 2
+      }
+      statement.execute()
     }
-    conn.close()
+  }
+
+  def onPersonEnter(nick: String) = {
   }
 }
