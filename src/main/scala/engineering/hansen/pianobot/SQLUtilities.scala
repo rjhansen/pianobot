@@ -22,7 +22,7 @@ object SQLUtilities {
           |  (
           |  id INTEGER PRIMARY KEY,
           |  nick TEXT UNIQUE NOT NULL,
-          |  lastSeen TEXT
+          |  lastSeen INTEGER NOT NULL DEFAULT 0
           |  )
         """.stripMargin
       )
@@ -59,6 +59,8 @@ object SQLUtilities {
           |  fromID INTEGER NOT NULL,
           |  toID INTEGER NOT NULL,
           |  message TEXT NOT NULL,
+          |  when INTEGER NOT NULL DEFAULT 0,
+          |  UNIQUE(fromID, toID, message) ON CONFLICT REPLACE,
           |  FOREIGN KEY (fromID) REFERENCES people(id),
           |  FOREIGN KEY (toID) REFERENCES people(id)
           |  )
