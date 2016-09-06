@@ -36,6 +36,7 @@ object Environment {
       case false =>
         try {
           Files.createDirectory(Paths.get(homedir + ".pianobot" + File.separator))
+          homedir + ".pianobot" + File.separator
         }
         catch {
           case _: Throwable =>
@@ -58,7 +59,6 @@ object Environment {
 
     Files.exists(log4jfilePath) match {
       case false =>
-        println("log4j file doesn't exist!")
         var istream : InputStream = null
         var pw : PrintWriter = null
         try {
@@ -94,6 +94,14 @@ object Environment {
     case true => appdir + "pianobot.conf";
   }
 
+  val options = {
+    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([A-Za-z0-9_\.]+)\s*(#.*)?$""".r
+    val validOptions = scala.collection.immutable.Set("admin", "bot", "password", "irc server", "irc channel")
+    (for (regex(key, value, _) <- scala.io.Source.fromFile(confFile).getLines()
+          if validOptions.contains(key.trim.toLowerCase)
+    ) yield (key.trim.toLowerCase(), value.trim)).toMap
+  }
+
   val musicDB = Files.exists(Paths.get(appdir + "pianobot.db")) match {
       case false => Utilities.initializeDB()
         appdir + "pianobot.db"
@@ -107,5 +115,7 @@ object Environment {
         }
     }
 
-  def initialize() = { }
+  def initialize() = {
+    (homedir, appdir, log4jFile, confFile, options, musicDB)
+  }
 }

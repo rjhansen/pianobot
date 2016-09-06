@@ -27,7 +27,6 @@ import java.io.File;
 public class GetConfig extends Application implements Initializable {
 
     private final Logger logger = LogManager.getLogger(GetConfig.class);
-    private boolean shouldSave = false;
 
     @FXML
     public Button cancel;
@@ -68,7 +67,7 @@ public class GetConfig extends Application implements Initializable {
         boolean goodAdminNick = nickRegex.matcher(_adminNick).matches();
         boolean goodBotNick = nickRegex.matcher(_botNick).matches();
         boolean goodBotPW = nickRegex.matcher(_botPassword).matches();
-        boolean goodMP3Path = false;
+        boolean goodMP3Path = Files.isDirectory(Paths.get(_mp3dir)) && Files.isReadable(Paths.get(_mp3dir));
 
         try {
             goodMP3Path = (_mp3dir.length() > 0) && (Files.isDirectory(Paths.get(_mp3dir)));
@@ -94,7 +93,7 @@ public class GetConfig extends Application implements Initializable {
         ok.setDisable( ! (goodAdminNick && goodBotNick && goodBotPW && goodMP3Path));
     }
 
-    private void runOnExit() {
+    private void runOnExit(boolean shouldSave) {
         if (! shouldSave) {
             logger.fatal("User canceled out of setup");
             System.exit(-1);
@@ -118,16 +117,19 @@ public class GetConfig extends Application implements Initializable {
             logger.fatal(e);
             System.exit(-1);
         }
+        javafx.application.Platform.exit();
     }
 
     public void initialize(URL fxmlFileLocation, ResourceBundle resources) {
-        cancel.setOnAction((event) -> { shouldSave = false; runOnExit(); javafx.application.Platform.exit(); });
-        ok.setOnAction((event) -> { shouldSave = true; runOnExit(); javafx.application.Platform.exit(); });
+        cancel.setOnAction((event) -> runOnExit(false));
+        ok.setOnAction((event) -> runOnExit(true));
         cbIRC.getItems().addAll("irc.freenode.net");
         cbChan.getItems().addAll("#callahans");
+        mp3dir.setText(System.getProperty("user.home"));
         cbIRC.getSelectionModel().select(0);
         cbChan.getSelectionModel().select(0);
         botNick.setOnKeyTyped((event) -> validateForm());
+        botPassword.setOnKeyTyped((event) -> validateForm());
         adminNick.setOnKeyTyped((event) -> validateForm());
         mp3dir.setOnKeyTyped((event) -> validateForm());
     }
