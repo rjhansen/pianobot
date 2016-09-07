@@ -6,6 +6,9 @@ import java.nio.file.Paths
 object App {
   def main(args : Array[String]): Unit = {
     Environment.initialize()
-    SQLUtilities.populateMP3s()
+    SQLUtilities.sawPerson("Alaric")
+    SQLUtilities.leaveMessageFor("Raubritter", "Alaric", "I owe him a drink")
+    for (x <- SQLUtilities.getMessagesFor("Alaric"))
+      println(x)
   }
 }
