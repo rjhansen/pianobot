@@ -96,7 +96,7 @@ object Environment {
   }
 
   val options = {
-    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([/\\A-Za-z0-9_\.]+)\s*(#.*)?$""".r
+    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([/\\A-Z a-z0-9_\.]+)\s*(#.*)?$""".r
     val validOptions = scala.collection.immutable.Set("admin", "bot", "password", "irc server", "irc channel", "repertoire")
     (for (regex(key, value, _) <- scala.io.Source.fromFile(confFile).getLines()
           if validOptions.contains(key.trim.toLowerCase)

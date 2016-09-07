@@ -6,6 +6,6 @@ import java.nio.file.Paths
 object App {
   def main(args : Array[String]): Unit = {
     Environment.initialize()
-    SQLUtilities.populateMP3s("/home/rjh/mp3s")
+    SQLUtilities.populateMP3s()
   }
 }

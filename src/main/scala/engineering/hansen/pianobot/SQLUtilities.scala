@@ -59,7 +59,7 @@ object SQLUtilities {
           |  fromID INTEGER NOT NULL,
           |  toID INTEGER NOT NULL,
           |  message TEXT NOT NULL,
-          |  when INTEGER NOT NULL DEFAULT 0,
+          |  timestamp INTEGER NOT NULL DEFAULT 0,
           |  UNIQUE(fromID, toID, message) ON CONFLICT REPLACE,
           |  FOREIGN KEY (fromID) REFERENCES people(id),
           |  FOREIGN KEY (toID) REFERENCES people(id)
@@ -125,7 +125,7 @@ object SQLUtilities {
       logger.info("gave the admin the admin bit")
       logger.info("reading in mp3s from " +
         Environment.options("repertoire"))
-      populateMP3s(Environment.options("repertoire"))
+      populateMP3s()
       val countstr = "SELECT COUNT(*) FROM songs"
       val songCount = connection.createStatement().executeQuery(countstr).getInt(1)
       val artiststr = "SELECT COUNT(*) FROM songwriters"
@@ -182,8 +182,8 @@ object SQLUtilities {
     music
   }
 
-  def populateMP3s(root: String) {
-    val music = makeMP3Maps(root)
+  def populateMP3s() {
+    val music = makeMP3Maps(Environment.options("repertoire"))
     val jdbcstr = "jdbc:sqlite:" + Environment.appdir + "pianobot.db"
     val artistQuery = connection.prepareStatement(
       "INSERT OR IGNORE INTO songwriters (name) VALUES " +
