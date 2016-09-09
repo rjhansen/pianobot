@@ -177,40 +177,86 @@ object SQLUtilities {
   }
 
   private def makeMP3Maps(root_dir: String) = {
-    def enumerateMP3s(dir: String): Array[String] = {
-      val mp3s = (for (i <- Files.newDirectoryStream(Paths.get(dir)).asScala
-                       if Files.isRegularFile(i) && Files.isReadable(i) && i.toAbsolutePath.toString.endsWith("mp3"))
-        yield i.toAbsolutePath.toString).toArray
-      val dirs = (for (i <- Files.newDirectoryStream(Paths.get(dir)).asScala
-                       if Files.isDirectory(i) && Files.isReadable(i))
-        yield i.toAbsolutePath.toString).toArray
-      mp3s ++ dirs.flatMap(enumerateMP3s)
+    logger.debug(s"making maps of MP3 files found in $root_dir")
+
+    if (!Files.isDirectory(Paths.get(root_dir))) {
+      logger.fatal("directory doesn't exist/isn't readable!")
+      System.err.println("There's been a fatal error.  Please check the log.")
+      System.exit(1)
     }
-    val mp3files: Array[(String, String, Int)] = enumerateMP3s(root_dir).flatMap((fn: String) => {
-      val mp3obj = new Mp3File(fn)
-      val length = mp3obj.getLengthInSeconds.toInt
-      if (mp3obj.hasId3v2Tag) {
-        val tagobj = mp3obj.getId3v2Tag
-        val artist = tagobj.getArtist
-        val songname = tagobj.getTitle
-        (artist == null) || (songname == null) match {
-          case true => None
-          case false => Some((artist, songname, length))
+
+    val mp3files = {
+      var searchdirs = new scala.collection.mutable.ListBuffer[String]()
+      val visiteddirs = scala.collection.mutable.Set[String]()
+      val thesemp3s = scala.collection.mutable.ListBuffer[String]()
+      searchdirs += root_dir
+
+      // This was originally recursive code, converted to a tight while loop
+      // for performance and stability ones.  Please don't convert it back.
+
+      while (!searchdirs.isEmpty) {
+        logger.debug(s"searching ${searchdirs.head}")
+        try {
+          val files = for (i <-
+            Files.newDirectoryStream(
+              Paths.get(searchdirs.head)).asScala
+            if Files.isReadable(i)) yield i.toAbsolutePath.toString
+          val dirs = for (i <-
+            files if Files.isDirectory(Paths.get(i))) yield i
+          thesemp3s ++= (for (i <-
+            files if Files.isRegularFile(Paths.get(i)) &&
+            i.endsWith("mp3")) yield i)
+
+          visiteddirs += searchdirs.head
+          searchdirs = searchdirs.tail
+          searchdirs ++= (for (i <- dirs if !visiteddirs.contains(i)) yield i)
+        } catch {
+          case _ : Throwable =>
+            logger.fatal(s"could not access ${searchdirs.head}")
+            System.err.println("A fatal error occurred.  Please check the log.")
         }
-      } else if (mp3obj.hasId3v1Tag) {
-        val tagobj = mp3obj.getId3v1Tag
-        val artist = tagobj.getArtist
-        val songname = tagobj.getTitle
-        (artist == null) || (songname == null) match {
-          case true => None
-          case false => Some((artist, songname, length))
+      }
+      logger.info(thesemp3s.toArray)
+      thesemp3s.toList
+    }
+
+    val mp3s = for (i <- mp3files.flatMap((fn: String) => {
+      try {
+        logger.debug(s"processing $fn")
+        val mp3obj = new Mp3File(fn)
+        val length = mp3obj.getLengthInSeconds.toInt
+        if (mp3obj.hasId3v2Tag) {
+          val tagobj = mp3obj.getId3v2Tag
+          val artist = tagobj.getArtist
+          val songname = tagobj.getTitle
+          (artist == null) || (songname == null) match {
+            case true => None
+            case false => Some((artist, songname, length))
+          }
         }
-      } else None
-    })
+        else if (mp3obj.hasId3v1Tag) {
+          val tagobj = mp3obj.getId3v1Tag
+          val artist = tagobj.getArtist
+          val songname = tagobj.getTitle
+          (artist == null) || (songname == null) match {
+            case true => None
+            case false => Some((artist, songname, length))
+          }
+        }
+        else None
+      }
+      catch {
+        case _: Throwable =>
+          logger.info(s"$fn threw an exception on reading its ID3 tags.  Recovering...")
+          None
+      }
+    })) yield i
+
+    logger.info(mp3s)
 
     val music = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Int]]()
 
-    for ((artist: String, songname: String, length: Int) <- mp3files) {
+    for ((artist: String, songname: String, length: Int) <- mp3s) {
       if (!music.contains(artist))
         music(artist) = scala.collection.mutable.Map[String, Int]()
       if (!music(artist).contains(songname))
@@ -220,26 +266,33 @@ object SQLUtilities {
   }
 
   def populateMP3s() {
+    logger.debug("entering populateMP3s()")
     val music = makeMP3Maps(Environment.options("repertoire"))
+    logger.debug("populating songwriters table")
+    logger.debug("INSERT OR IGNORE INTO songwriters(name) VALUES " +
+      music.keys.toArray.map((_: String) => "(?)").mkString(", "))
     for (artistQuery <- managed(connection.prepareStatement(
-      "INSERT OR IGNORE INTO songwriters (name) VALUES " +
+      "INSERT OR IGNORE INTO songwriters(name) VALUES " +
       music.keys.toArray.map((_: String) => "(?)").mkString(", ")))) {
       for ((artist, index) <- music.keys.zip(Stream from 1))
         artistQuery.setString(index, artist)
       artistQuery.execute()
     }
 
+    logger.debug("populating songs table")
     for (artist <- music.keys) {
+      logger.debug(s"artist: $artist")
       for (foo <- managed(connection.prepareStatement(
         "SELECT id FROM songwriters WHERE name=?"))) {
-        foo.setString(1, artist)
+          foo.setString(1, artist)
         val artistId = foo.executeQuery().getInt("id")
         val sb = new StringBuilder()
-        sb.append("INSERT OR IGNORE INTO songs (byID, name, length) VALUES ")
+        sb.append("INSERT OR IGNORE INTO songs(byID, name, length) VALUES ")
         sb.append(
           List.fill(
             music(artist).keys.size)
             (s"($artistId, ?, ?)").mkString(", "))
+        logger.debug(sb.toString)
 
         for (statement <- managed(connection.prepareStatement(sb.toString))) {
           var index = 1
@@ -359,7 +412,7 @@ object SQLUtilities {
   def getMessagesFor(nick: String) : Array[(String, String, Int)] = {
     var rv = Array.ofDim[(String, String, Int)](0)
     getIdFromNick(nick) match {
-      case None => ;
+      case None => rv;
       case Some(nickID: Int) => {
         for (q <- managed(connection.createStatement())) {
           val rs = q.executeQuery(
@@ -372,12 +425,38 @@ object SQLUtilities {
             def next = (rs.getString(1), rs.getString(2), rs.getInt(3))
           }.toArray
         }
-        for (q <- managed(connection.createStatement())) {
-          q.executeUpdate(
-            s"DELETE FROM messages WHERE toID = ${nickID}")
-        }
+        rv
       }
     }
-    rv
+  }
+
+  def flushMessagesFor(nick: String) : Unit = {
+    getIdFromNick(nick) match {
+      case None => ;
+      case Some(nickID: Int) => 
+        for (q <- managed(connection.createStatement()))
+          q.executeUpdate(
+            s"DELETE FROM messages WHERE toID = ${nickID}")
+    }
+  }
+
+  def getCapabilitiesFor(nick: String) : Set[String] = {
+    var rv = Set[String]()
+    getIdFromNick(nick) match {
+      case None => rv
+      case Some(nickID: Int) =>
+      for (q <- managed(connection.createStatement())) {
+        val rs = q.executeQuery(
+          s"""SELECT capabilities.name
+             |FROM capabilityMap, capabilities
+             |WHERE capabilityMap.peopleID = $nickID AND
+             |capabilitiesMap.capabilityID = capabilities.id""".stripMargin)
+        rv = new Iterator[String] {
+          def hasNext = rs.next
+          def next = rs.getString(1)
+        }.toSet
+      }
+      rv
+    }
   }
 }
