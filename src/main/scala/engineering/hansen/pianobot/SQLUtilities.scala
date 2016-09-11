@@ -194,7 +194,7 @@ object SQLUtilities {
       // This was originally recursive code, converted to a tight while loop
       // for performance and stability ones.  Please don't convert it back.
 
-      while (!searchdirs.isEmpty) {
+      while (searchdirs.nonEmpty) {
         logger.debug(s"searching ${searchdirs.head}")
         try {
           val files = for (i <-
@@ -318,13 +318,16 @@ object SQLUtilities {
   }
 
   def sawPeople(nicks: Iterable[String]) = {
-    val timestamp = System.currentTimeMillis / 1000
-    val substr = List.fill(nicks.size) { s"(?, $timestamp)" }.mkString(", ")
-    for (q <- managed(connection.prepareStatement(
-      s"INSERT OR REPLACE INTO people(nick, lastSeen) VALUES $substr"))) {
-      for ((nick, index) <- nicks.zip(Stream from 1))
-        q.setString(index, nick)
-      q.execute()
+    logger.info(s"received new list of nicks with ${nicks.size} elements")
+    if (nicks.nonEmpty) {
+      val timestamp = System.currentTimeMillis / 1000
+      val substr = List.fill(nicks.size) { s"(?, $timestamp)" }.mkString(", ")
+      for (q <- managed(connection.prepareStatement(
+        s"INSERT OR REPLACE INTO people(nick, lastSeen) VALUES $substr"))) {
+        for ((nick, index) <- nicks.zip(Stream from 1))
+          q.setString(index, nick)
+        q.execute()
+      }
     }
   }
 
@@ -399,7 +402,7 @@ object SQLUtilities {
           val ts = System.currentTimeMillis / 1000
           for (q <- managed(connection.prepareStatement(
             s"""INSERT INTO messages(fromID, toID, message, timestamp)
-               |VALUES(${fromID}, ${toID}, ?, ${ts})""".stripMargin))) {
+               |VALUES($fromID, $toID, ?, $ts)""".stripMargin))) {
             q.setString(1, msg)
             q.execute()
             rv = true
@@ -413,12 +416,12 @@ object SQLUtilities {
     var rv = Array.ofDim[(String, String, Int)](0)
     getIdFromNick(nick) match {
       case None => rv;
-      case Some(nickID: Int) => {
+      case Some(nickID: Int) =>
         for (q <- managed(connection.createStatement())) {
           val rs = q.executeQuery(
             s"""SELECT people.nick, messages.message,
                |messages.timestamp FROM people, messages
-               |WHERE messages.toID = ${nickID} AND
+               |WHERE messages.toID = $nickID AND
                |people.id = messages.fromID""".stripMargin)
           rv = new Iterator[(String, String, Int)] {
             def hasNext = rs.next
@@ -426,7 +429,6 @@ object SQLUtilities {
           }.toArray
         }
         rv
-      }
     }
   }
 
@@ -436,7 +438,7 @@ object SQLUtilities {
       case Some(nickID: Int) => 
         for (q <- managed(connection.createStatement()))
           q.executeUpdate(
-            s"DELETE FROM messages WHERE toID = ${nickID}")
+            s"DELETE FROM messages WHERE toID = $nickID")
     }
   }
 
