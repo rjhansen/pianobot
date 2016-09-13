@@ -42,36 +42,37 @@ import java.io.PrintWriter;
 import java.io.FileOutputStream;
 import java.io.File;
 
+@SuppressWarnings("CanBeFinal")
 public class GetConfig extends Application implements Initializable {
 
     private final Logger logger = LogManager.getLogger(GetConfig.class);
 
     @FXML
-    public Button cancel;
+    private Button cancel;
 
     @FXML
-    public Button ok;
+    private Button ok;
 
     @FXML
-    public ComboBox<String> cbIRC;
+    private ComboBox<String> cbIRC;
 
     @FXML
-    public ComboBox<String> cbChan;
+    private ComboBox<String> cbChan;
 
     @FXML
-    public TextField botNick;
+    private TextField botNick;
 
     @FXML
-    public TextField adminNick;
+    private TextField adminNick;
 
     @FXML
-    public TextField mp3dir;
+    private TextField mp3dir;
 
     @FXML
-    public Label helpText;
+    private Label helpText;
 
     @FXML
-    public TextField botPassword;
+    private TextField botPassword;
 
     private final Pattern nickRegex = Pattern.compile("^[A-Za-z0-9_]+$");
 

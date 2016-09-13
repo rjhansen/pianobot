@@ -3,9 +3,9 @@
 <?import javafx.scene.text.*?>
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
-<?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
+<!--suppress JavaFxDefaultTag, JavaFxDefaultTag, JavaFxDefaultTag -->
 <VBox id="vbox" alignment="TOP_CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="engineering.hansen.pianobot.GetConfig">
    <children>
       <GridPane hgap="10.0" vgap="10.0">

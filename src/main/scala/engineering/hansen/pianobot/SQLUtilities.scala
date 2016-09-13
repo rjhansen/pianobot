@@ -1,5 +1,23 @@
 package engineering.hansen.pianobot
 
+/*
+ * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
+ *
+ * Permission to use, copy, modify, and/or distribute this software
+ * for any purpose with or without fee is hereby granted, provided
+ * that the above copyright notice and this permission notice
+ * appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 import java.nio.file.{Files, Paths}
 import java.sql.{DriverManager, PreparedStatement}
 import org.apache.logging.log4j.LogManager
@@ -12,7 +30,7 @@ object SQLUtilities {
   private val jdbcstr = s"jdbc:sqlite:${Environment.appdir}pianobot.db"
   private var connection = DriverManager.getConnection(jdbcstr)
 
-  def initializeDB() : Unit = {
+  def Initialize() : Unit = {
     try {
       connection.close()
       Files.deleteIfExists(Paths.get(Environment.appdir + "pianobot.db"))
@@ -157,7 +175,7 @@ object SQLUtilities {
       logger.info("gave the admin the admin bit")
       logger.info("reading in mp3s from " +
         Environment.options("repertoire"))
-      populateMP3s()
+      PopulateMP3s()
 
       val countstr = "SELECT COUNT(*) FROM songs"
       for (statement <- managed(connection.createStatement())) {
@@ -176,7 +194,7 @@ object SQLUtilities {
     }
   }
 
-  private def makeMP3Maps(root_dir: String) = {
+  private def MakeMP3Maps(root_dir: String) = {
     logger.debug(s"making maps of MP3 files found in $root_dir")
 
     if (!Files.isDirectory(Paths.get(root_dir))) {
@@ -220,7 +238,7 @@ object SQLUtilities {
       thesemp3s.toList
     }
 
-    val mp3s = for (i <- mp3files.flatMap((fn: String) => {
+    val MP3s = for (i <- mp3files.flatMap((fn: String) => {
       try {
         logger.debug(s"processing $fn")
         val mp3obj = new Mp3File(fn)
@@ -252,11 +270,9 @@ object SQLUtilities {
       }
     })) yield i
 
-    logger.info(mp3s)
-
     val music = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Int]]()
 
-    for ((artist: String, songname: String, length: Int) <- mp3s) {
+    for ((artist: String, songname: String, length: Int) <- MP3s) {
       if (!music.contains(artist))
         music(artist) = scala.collection.mutable.Map[String, Int]()
       if (!music(artist).contains(songname))
@@ -265,9 +281,9 @@ object SQLUtilities {
     music
   }
 
-  def populateMP3s() {
+  private def PopulateMP3s() {
     logger.debug("entering populateMP3s()")
-    val music = makeMP3Maps(Environment.options("repertoire"))
+    val music = MakeMP3Maps(Environment.options("repertoire"))
     logger.debug("populating songwriters table")
     logger.debug("INSERT OR IGNORE INTO songwriters(name) VALUES " +
       music.keys.toArray.map((_: String) => "(?)").mkString(", "))
@@ -307,7 +323,7 @@ object SQLUtilities {
     }
   }
 
-  def sawPerson(nick: String) = {
+  def SawPerson(nick: String) = {
     val timestamp = System.currentTimeMillis / 1000
     for (q <- managed(connection.prepareStatement(
       s"""INSERT OR REPLACE INTO people(nick, lastSeen) 
@@ -317,7 +333,7 @@ object SQLUtilities {
     }
   }
 
-  def sawPeople(nicks: Iterable[String]) = {
+  def SawPeople(nicks: Iterable[String]) = {
     logger.info(s"received new list of nicks with ${nicks.size} elements")
     if (nicks.nonEmpty) {
       val timestamp = System.currentTimeMillis / 1000
@@ -331,7 +347,7 @@ object SQLUtilities {
     }
   }
 
-  def lastSaw(nick: String): Option[Int] = {
+  def LastSaw(nick: String): Option[Int] = {
     var rv : Option[Int] = None
     for (q <- managed(connection.prepareStatement(
       "SELECT timestamp FROM people WHERE people.nick = ?"))) {
@@ -342,14 +358,14 @@ object SQLUtilities {
     rv
   }
 
-  def isNickKnown(nick: String): Boolean = {
-    lastSaw(nick) match {
+  def IsNickKnown(nick: String): Boolean = {
+    LastSaw(nick) match {
       case None => false;
       case _ => true;
     }
   }
 
-  def isSongKnown(artist: String, title: String): Boolean = {
+  def IsSongKnown(artist: String, title: String): Boolean = {
     var rv = false
     for (q <- managed(connection.prepareStatement(
       """SELECT songs.id FROM songwriters, songs
@@ -362,7 +378,7 @@ object SQLUtilities {
     rv
   }
 
-  def getArtistsBySong(title: String): Array[String] = {
+  def GetAllCovers(title: String): Array[String] = {
     var rv : Array[String] = Array.ofDim[String](0)
     for (q <- managed(connection.prepareStatement(
       """SELECT songwriters.name FROM songwriters, songs
@@ -378,7 +394,7 @@ object SQLUtilities {
     rv
   }
 
-  private def getIdFromNick(nick: String): Option[Int] = {
+  private def GetIDFromNick(nick: String): Option[Int] = {
     var rv : Option[Int] = None
     for (q <- managed(connection.prepareStatement(
       "SELECT id FROM people WHERE people.nick = ?"))) {
@@ -392,11 +408,11 @@ object SQLUtilities {
     rv
   }
 
-  def leaveMessageFor(from: String, to: String, msg: String) : Boolean = {
+  def LeaveMessageFor(from: String, to: String, msg: String) : Boolean = {
     var rv = false
-    getIdFromNick(from) match {
+    GetIDFromNick(from) match {
       case None => ;
-      case Some(fromID: Int) => getIdFromNick(to) match {
+      case Some(fromID: Int) => GetIDFromNick(to) match {
         case None => ;
         case Some(toID: Int) =>
           val ts = System.currentTimeMillis / 1000
@@ -412,9 +428,9 @@ object SQLUtilities {
     rv
   }
 
-  def getMessagesFor(nick: String) : Array[(String, String, Int)] = {
+  def GetMessagesFor(nick: String) : Array[(String, String, Int)] = {
     var rv = Array.ofDim[(String, String, Int)](0)
-    getIdFromNick(nick) match {
+    GetIDFromNick(nick) match {
       case None => rv;
       case Some(nickID: Int) =>
         for (q <- managed(connection.createStatement())) {
@@ -432,8 +448,8 @@ object SQLUtilities {
     }
   }
 
-  def flushMessagesFor(nick: String) : Unit = {
-    getIdFromNick(nick) match {
+  def FlushMessagesFor(nick: String) : Unit = {
+    GetIDFromNick(nick) match {
       case None => ;
       case Some(nickID: Int) => 
         for (q <- managed(connection.createStatement()))
@@ -442,9 +458,9 @@ object SQLUtilities {
     }
   }
 
-  def getCapabilitiesFor(nick: String) : Set[String] = {
+  def GetCapabilitiesFor(nick: String) : Set[String] = {
     var rv = Set[String]()
-    getIdFromNick(nick) match {
+    GetIDFromNick(nick) match {
       case None => rv
       case Some(nickID: Int) =>
       for (q <- managed(connection.createStatement())) {
@@ -452,7 +468,7 @@ object SQLUtilities {
           s"""SELECT capabilities.name
              |FROM capabilityMap, capabilities
              |WHERE capabilityMap.peopleID = $nickID AND
-             |capabilitiesMap.capabilityID = capabilities.id""".stripMargin)
+             |capabilityMap.capabilityID = capabilities.id""".stripMargin)
         rv = new Iterator[String] {
           def hasNext = rs.next
           def next = rs.getString(1)

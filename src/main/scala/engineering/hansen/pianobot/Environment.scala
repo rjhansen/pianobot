@@ -1,22 +1,22 @@
 package engineering.hansen.pianobot
 
-/**
-  * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
-  *
-  * Permission to use, copy, modify, and/or distribute this software
-  * for any purpose with or without fee is hereby granted, provided
-  * that the above copyright notice and this permission notice
-  * appear in all copies.
-  *
-  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
-  * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
-  * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
-  * THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
-  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-  * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
-  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-  */
+/*
+ * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
+ *
+ * Permission to use, copy, modify, and/or distribute this software
+ * for any purpose with or without fee is hereby granted, provided
+ * that the above copyright notice and this permission notice
+ * appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
 import java.nio.file.{Paths, Files}
 import java.io.{InputStream, PrintWriter, File}
@@ -72,7 +72,7 @@ object Environment {
     }
 
   val log4jFile = {
-    val log4jfile = appdir + "log4j2.xml"
+    var log4jfile = appdir + "log4j2.xml"
     val log4jfilePath = Paths.get(log4jfile)
 
     Files.exists(log4jfilePath) match {
@@ -84,7 +84,6 @@ object Environment {
           pw = new PrintWriter(log4jfile)
           for (i <- Source.fromInputStream(istream).getLines())
             pw.println(i.replace("LOG4JCONF_FILE", appdir + "pianobot.log"))
-          log4jfile
         }
         catch {
           case _ : Throwable =>
@@ -97,15 +96,16 @@ object Environment {
           if (pw != null) pw.close()
         }
 
-      case true => log4jfile
+      case true => ;
     }
 
     sys.props.get("log4j.configurationFile") match {
       case None => sys.props("log4j.configurationFile") = log4jfile
-      case Some(x) => x;
+      case Some(x) => log4jfile = x
     }
     logger = LogManager.getLogger(getClass)
     logger.info("started Pianobot")
+    log4jfile
   }
 
   val confFile = Files.exists(Paths.get(appdir + "pianobot.conf")) match {
@@ -123,7 +123,7 @@ object Environment {
   }
 
   val musicDB = Files.exists(Paths.get(appdir + "pianobot.db")) match {
-      case false => SQLUtilities.initializeDB()
+      case false => SQLUtilities.Initialize()
         appdir + "pianobot.db"
       case true =>
         Files.isDirectory(Paths.get(appdir + "pianobot.db")) match {
