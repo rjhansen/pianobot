@@ -27,67 +27,41 @@ object Parser {
   private val doYouKnow = "^do\\s+you\\s+know\\s\"([A-Za-z0-9_' -]+)\"(\\s+by\\s+([^?]*))?\\??$".r
   private val leaveMessage = "^(please\\s+)?tell\\s+([A-Za-z0-9_-]+)\\s+(that\\s+)?\"?([^\"\\.]+)\"?\\.?$".r
   private val goHome = "^(please\\s+)?go\\s+home(\\snow)?\\.?".r
+  private val haveYouSeen = "^have\\s+you\\s+seen\\s+([A-Za-z0-9_]+)\\??$".r
   private var actor : Option[akka.actor.ActorRef] = None
-  private var bot : Option[org.pircbotx.PircBotX] = None
 
   def setActor(a : akka.actor.ActorRef) = {
     actor = Some(a)
   }
 
-  def setEngine(a : org.pircbotx.PircBotX) = {
-    bot = Some(a)
-  }
-
-  private def PlaySong(speaker: String, song: String, artist: Option[String]) = {
+  def sendToActor(resp: Response, alt: String) = {
     actor match {
-      case Some(x) => ;
-      case None => artist match {
-        case Some(x) => println(s"queueing ${artist.get}'s $song")
-        case None => println(s"queueing $song (no artist specified)")
-      }
+      case Some(x) => x ! resp
+      case None => println(alt)
     }
   }
 
-  private def DoYouKnow(speaker: String, song: String, artist: Option[String]) = {
-    actor match {
-      case Some(x) => ;
-      case None => artist match {
-        case Some(x) => println(s"looking up ${artist.get}'s $song")
-        case None => println(s"looking up $song (no artist specified)")
-      }
-    }
-  }
-
-  private def LeaveMessage(speaker: String, target: String, msg: String) = {
-    actor match {
-      case Some(x) => ;
-      case None => println(s"Received a message for $target: $msg")
-    }
-  }
-
-  private def GoHome(speaker: String) = {
-    val isAdmin = SQLUtilities.GetCapabilitiesFor(speaker).contains("admin")
-    val msg = isAdmin match {
-      case true => s"""silently gets up, pays his bar tab, and leaves."""
-      case false => s"""$speaker, to misquote _Blazing Saddles_, \"Screw you, I'm workin' for ${Environment.options("admin")}!""""
-    }
-    actor match {
-      case Some(x) => ;
-      case None => println(s"$msg")
-    }
-  }
-
-  def apply(speaker: String, msg: String) : Unit = {
-    var rest = ""
+  def apply(speaker: String, msg: String) = {
     msg match {
-      case filter(x) => rest = x.trim()
-      case _ => return
-    }
-    rest match {
-      case playSong(_, song, _, artist) => PlaySong(speaker, song, Option(artist))
-      case doYouKnow(song, _, artist) => DoYouKnow(speaker, song, Option(artist))
-      case leaveMessage(_, person, _, message) => LeaveMessage(speaker, person, message)
-      case goHome(_, _) => GoHome(speaker)
+      case filter(x) =>
+        x.trim() match {
+          case playSong(_, song, _, artist) =>
+            sendToActor(EnqueueSong(speaker, song, Option(artist)),
+              s"enqueuing $song by ${Option(artist).getOrElse("unknown")}")
+          case doYouKnow(song, _, artist) =>
+            sendToActor(DoYouKnow(speaker, song, Option(artist)),
+              s"checking to see if the bot knows $song by ${Option(artist).getOrElse("unknown")}")
+          case leaveMessage(_, person, _, message) =>
+            sendToActor(LeaveMessageFor(speaker, person, msg),
+              s"$speaker left message for $person: $msg")
+          case goHome(_, _) =>
+            sendToActor(GoHome(speaker),
+              s"$speaker told $botname to go home")
+          case haveYouSeen(person) =>
+            sendToActor(HaveYouSeen(person),
+              s"$speaker asked when $botname last saw $person")
+          case _ => ;
+        }
       case _ => ;
     }
   }
@@ -126,10 +100,10 @@ object Parser {
         "please go home.",
         "please go home",
         "go home.",
-        "go home"
-
-
-      )) yield s"Pianobot_TEST, $i")
+        "go home",
+        "have you seen Alaric?",
+        "have you seen Alaric"
+      )) yield s"${Environment.options("bot")}, $i")
         try {
           Parser(Environment.options("admin"), j)
           Parser("dummy-user", j)

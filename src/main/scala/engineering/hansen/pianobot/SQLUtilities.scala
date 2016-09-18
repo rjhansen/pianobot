@@ -378,6 +378,19 @@ object SQLUtilities {
     rv
   }
 
+  def GetSongLength(artist: String, title: String) : Int = {
+    var rv = -1
+    for (q <- managed(connection.prepareStatement(
+      "SELECT songs.length FROM songwriters, songs WHERE songwriters.name = ? " +
+        "AND songs.name = ? AND songs.byID = songwriters.id"))) {
+      q.setString(1, artist)
+      q.setString(2, title)
+      val rs = q.executeQuery()
+      while (rs.next) rv = rs.getInt(1)
+    }
+    rv
+  }
+
   def GetAllCovers(title: String): Array[String] = {
     var rv : Array[String] = Array.ofDim[String](0)
     for (q <- managed(connection.prepareStatement(

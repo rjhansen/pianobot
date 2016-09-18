@@ -24,12 +24,10 @@ import akka.actor.{ActorRef, Props, Actor, ActorSystem}
 object App {
   def main(args : Array[String]): Unit = {
     Environment.initialize()
-    Parser.selfTest()
-    /*
+//    Parser.selfTest()
     val bot = Pianobot.start()
-    Thread.sleep(30000)
+    Thread.sleep(60000)
     bot ! "stop"
-    */
 
   }
 }

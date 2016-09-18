@@ -61,18 +61,23 @@ class PianobotListener extends ListenerAdapter {
   }
 
   override def onJoin(e: JoinEvent) = {
+    getActor ! WrapJoinEvent(e)
   }
 
   override def onKick(e: KickEvent) = {
+    getActor ! WrapKickEvent(e)
   }
 
   override def onMessage(e: MessageEvent) = {
+    getActor ! WrapMessageEvent(e)
   }
 
   override def onPrivateMessage(e: PrivateMessageEvent) = {
+    getActor ! WrapPrivateMessageEvent(e)
   }
 
   override def onQuit(e: QuitEvent) = {
+    getActor ! WrapQuitEvent(e)
   }
 
   override def onUserList(e: UserListEvent) = {

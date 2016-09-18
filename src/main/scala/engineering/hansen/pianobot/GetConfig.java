@@ -168,7 +168,7 @@ public class GetConfig extends Application implements Initializable {
         dialog.initOwner(stage);
 
         Scene scene = new Scene(root);
-        dialog.setTitle("Pianobot Configuration");
+        dialog.setTitle("Pianobot.scala Configuration");
         dialog.setScene(scene);
         dialog.show();
         dialog.setResizable(false);

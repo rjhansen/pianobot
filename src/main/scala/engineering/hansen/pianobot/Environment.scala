@@ -104,7 +104,7 @@ object Environment {
       case Some(x) => log4jfile = x
     }
     logger = LogManager.getLogger(getClass)
-    logger.info("started Pianobot")
+    logger.info("started Pianobot.scala")
     log4jfile
   }
 
