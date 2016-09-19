@@ -52,7 +52,7 @@ object Parser {
             sendToActor(DoYouKnow(speaker, song, Option(artist)),
               s"checking to see if the bot knows $song by ${Option(artist).getOrElse("unknown")}")
           case leaveMessage(_, person, _, message) =>
-            sendToActor(LeaveMessageFor(speaker, person, msg),
+            sendToActor(LeaveMessageFor(speaker, person, message),
               s"$speaker left message for $person: $msg")
           case goHome(_, _) =>
             sendToActor(GoHome(speaker),

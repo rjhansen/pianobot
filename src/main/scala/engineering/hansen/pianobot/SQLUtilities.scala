@@ -29,6 +29,7 @@ object SQLUtilities {
   private val logger = LogManager.getLogger(getClass)
   private val jdbcstr = s"jdbc:sqlite:${Environment.appdir}pianobot.db"
   private var connection = DriverManager.getConnection(jdbcstr)
+  private val sem = new java.util.concurrent.Semaphore(1)
 
   def Initialize() : Unit = {
     try {
@@ -175,7 +176,7 @@ object SQLUtilities {
       logger.info("gave the admin the admin bit")
       logger.info("reading in mp3s from " +
         Environment.options("repertoire"))
-      PopulateMP3s()
+      populateMP3s()
 
       val countstr = "SELECT COUNT(*) FROM songs"
       for (statement <- managed(connection.createStatement())) {
@@ -281,12 +282,13 @@ object SQLUtilities {
     music
   }
 
-  private def PopulateMP3s() {
+  private def populateMP3s() {
     logger.debug("entering populateMP3s()")
     val music = MakeMP3Maps(Environment.options("repertoire"))
     logger.debug("populating songwriters table")
     logger.debug("INSERT OR IGNORE INTO songwriters(name) VALUES " +
       music.keys.toArray.map((_: String) => "(?)").mkString(", "))
+    sem.acquireUninterruptibly()
     for (artistQuery <- managed(connection.prepareStatement(
       "INSERT OR IGNORE INTO songwriters(name) VALUES " +
       music.keys.toArray.map((_: String) => "(?)").mkString(", ")))) {
@@ -320,53 +322,52 @@ object SQLUtilities {
           statement.execute()
         }
       }
+      sem.release()
     }
   }
 
-  def SawPerson(nick: String) = {
+  def sawPerson(nick: String) = {
     val timestamp = System.currentTimeMillis / 1000
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
-      s"""INSERT OR REPLACE INTO people(nick, lastSeen) 
-         |VALUES (?, $timestamp)""".stripMargin))) {
+      s"""INSERT OR REPLACE INTO people(id, nick, lastSeen)
+         |VALUES ((SELECT id FROM people WHERE nick=?), ?, $timestamp)"""
+        .stripMargin))) {
       q.setString(1, nick)
+      q.setString(2, nick)
       q.execute()
     }
+    sem.release()
   }
 
-  def SawPeople(nicks: Iterable[String]) = {
-    logger.info(s"received new list of nicks with ${nicks.size} elements")
-    if (nicks.nonEmpty) {
-      val timestamp = System.currentTimeMillis / 1000
-      val substr = List.fill(nicks.size) { s"(?, $timestamp)" }.mkString(", ")
-      for (q <- managed(connection.prepareStatement(
-        s"INSERT OR REPLACE INTO people(nick, lastSeen) VALUES $substr"))) {
-        for ((nick, index) <- nicks.zip(Stream from 1))
-          q.setString(index, nick)
-        q.execute()
-      }
-    }
+  def sawPeople(nicks: Iterable[String]) = {
+    for (nick <- nicks) sawPerson(nick)
   }
 
-  def LastSaw(nick: String): Option[Int] = {
+  def lastSaw(nick: String): Option[Int] = {
     var rv : Option[Int] = None
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
-      "SELECT timestamp FROM people WHERE people.nick = ?"))) {
+      "SELECT lastSeen FROM people WHERE people.nick = ?"))) {
+      q.setString(1, nick)
       val rs = q.executeQuery()
       if (rs.next())
         rv = Some(rs.getInt(1))
     }
+    sem.release()
     rv
   }
 
-  def IsNickKnown(nick: String): Boolean = {
-    LastSaw(nick) match {
+  def isNickKnown(nick: String): Boolean = {
+    lastSaw(nick) match {
       case None => false;
       case _ => true;
     }
   }
 
-  def IsSongKnown(artist: String, title: String): Boolean = {
+  def isSongKnown(artist: String, title: String): Boolean = {
     var rv = false
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
       """SELECT songs.id FROM songwriters, songs
         |WHERE songwriters.name = ? AND songs.name = ?
@@ -375,24 +376,28 @@ object SQLUtilities {
       q.setString(2, title)
       rv = q.executeQuery().next()
     }
+    sem.release()
     rv
   }
 
-  def GetSongLength(artist: String, title: String) : Int = {
+  def getSongLength(artist: String, title: String) : Int = {
     var rv = -1
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
       "SELECT songs.length FROM songwriters, songs WHERE songwriters.name = ? " +
         "AND songs.name = ? AND songs.byID = songwriters.id"))) {
       q.setString(1, artist)
       q.setString(2, title)
       val rs = q.executeQuery()
-      while (rs.next) rv = rs.getInt(1)
+      if (rs.next) rv = rs.getInt(1)
     }
+    sem.release()
     rv
   }
 
-  def GetAllCovers(title: String): Array[String] = {
+  def getAllCovers(title: String): Array[String] = {
     var rv : Array[String] = Array.ofDim[String](0)
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
       """SELECT songwriters.name FROM songwriters, songs
         |WHERE songs.name = ? AND 
@@ -404,11 +409,13 @@ object SQLUtilities {
         def next = rs.getString(1)
       }.toArray
     }
+    sem.release()
     rv
   }
 
-  private def GetIDFromNick(nick: String): Option[Int] = {
+  private def getIdFromNick(nick: String): Option[Int] = {
     var rv : Option[Int] = None
+    sem.acquireUninterruptibly()
     for (q <- managed(connection.prepareStatement(
       "SELECT id FROM people WHERE people.nick = ?"))) {
       q.setString(1, nick)
@@ -418,17 +425,19 @@ object SQLUtilities {
         case _ => ;
       }
     }
+    sem.release()
     rv
   }
 
-  def LeaveMessageFor(from: String, to: String, msg: String) : Boolean = {
+  def leaveMessageFor(from: String, to: String, msg: String) : Boolean = {
     var rv = false
-    GetIDFromNick(from) match {
+    getIdFromNick(from) match {
       case None => ;
-      case Some(fromID: Int) => GetIDFromNick(to) match {
+      case Some(fromID: Int) => getIdFromNick(to) match {
         case None => ;
         case Some(toID: Int) =>
           val ts = System.currentTimeMillis / 1000
+          sem.acquireUninterruptibly()
           for (q <- managed(connection.prepareStatement(
             s"""INSERT INTO messages(fromID, toID, message, timestamp)
                |VALUES($fromID, $toID, ?, $ts)""".stripMargin))) {
@@ -436,58 +445,73 @@ object SQLUtilities {
             q.execute()
             rv = true
           }
+          sem.release()
       }
     }
     rv
   }
 
-  def GetMessagesFor(nick: String) : Array[(String, String, Int)] = {
+  def getMessagesFor(nick: String) : Array[(String, String, Int)] = {
     var rv = Array.ofDim[(String, String, Int)](0)
-    GetIDFromNick(nick) match {
-      case None => rv;
+    getIdFromNick(nick) match {
+      case None =>
+        rv;
       case Some(nickID: Int) =>
+        sem.acquireUninterruptibly()
         for (q <- managed(connection.createStatement())) {
-          val rs = q.executeQuery(
-            s"""SELECT people.nick, messages.message,
-               |messages.timestamp FROM people, messages
-               |WHERE messages.toID = $nickID AND
-               |people.id = messages.fromID""".stripMargin)
+          val stmt = s"""SELECT people.nick, messages.message, messages.timestamp FROM people, messages WHERE messages.toID = $nickID AND people.id = messages.fromID ORDER BY messages.timestamp""".stripMargin
+          val rs = q.executeQuery(stmt)
           rv = new Iterator[(String, String, Int)] {
             def hasNext = rs.next
             def next = (rs.getString(1), rs.getString(2), rs.getInt(3))
           }.toArray
         }
+        sem.release()
         rv
     }
   }
 
-  def FlushMessagesFor(nick: String) : Unit = {
-    GetIDFromNick(nick) match {
+  def flushOldMessages() = {
+    val now = System.currentTimeMillis / 1000
+    val old = now - 864000
+    sem.acquireUninterruptibly()
+    for (s <- managed(connection.createStatement())) {
+      val rs = s.execute(s"DELETE FROM messages WHERE messages.timestamp < $old")
+    }
+    sem.release()
+  }
+
+  def flushMessagesFor(nick: String) : Unit = {
+    getIdFromNick(nick) match {
       case None => ;
-      case Some(nickID: Int) => 
+      case Some(nickID: Int) =>
+        sem.acquireUninterruptibly()
         for (q <- managed(connection.createStatement()))
           q.executeUpdate(
             s"DELETE FROM messages WHERE toID = $nickID")
+        sem.release()
     }
   }
 
-  def GetCapabilitiesFor(nick: String) : Set[String] = {
+  def getCapabilitiesFor(nick: String) : Set[String] = {
     var rv = Set[String]()
-    GetIDFromNick(nick) match {
+    getIdFromNick(nick) match {
       case None => rv
       case Some(nickID: Int) =>
-      for (q <- managed(connection.createStatement())) {
-        val rs = q.executeQuery(
+        sem.acquireUninterruptibly()
+        for (q <- managed(connection.createStatement())) {
+          val rs = q.executeQuery(
           s"""SELECT capabilities.name
              |FROM capabilityMap, capabilities
              |WHERE capabilityMap.peopleID = $nickID AND
              |capabilityMap.capabilityID = capabilities.id""".stripMargin)
-        rv = new Iterator[String] {
-          def hasNext = rs.next
-          def next = rs.getString(1)
-        }.toSet
-      }
-      rv
+          rv = new Iterator[String] {
+            def hasNext = rs.next
+            def next = rs.getString(1)
+          }.toSet
+        }
+        sem.release()
+        rv
     }
   }
 }

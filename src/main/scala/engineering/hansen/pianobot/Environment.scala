@@ -115,9 +115,9 @@ object Environment {
   }
 
   val options = {
-    val regex = """^\s*([A-Za-z][A-Za-z\s]*[A-Za-z]*)\s*[:=]\s*([/\\A-Z a-z0-9_\.]+)\s*(#.*)?$""".r
+    val regex = "^(.*)=(.*)$".r
     val validOptions = scala.collection.immutable.Set("admin", "bot", "password", "irc server", "irc channel", "repertoire")
-    (for (regex(key, value, _) <- scala.io.Source.fromFile(confFile).getLines()
+    (for (regex(key, value) <- scala.io.Source.fromFile(confFile).getLines()
           if validOptions.contains(key.trim.toLowerCase)
     ) yield (key.trim.toLowerCase(), value.trim)).toMap
   }

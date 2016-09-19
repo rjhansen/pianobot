@@ -1,7 +1,7 @@
 package engineering.hansen.pianobot
 
 /*
- * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
+ * Copyright (c) 2016, Rob Hansen <rob@hansen.engineering>.
  *
  * Permission to use, copy, modify, and/or distribute this software
  * for any purpose with or without fee is hereby granted, provided
@@ -18,16 +18,8 @@ package engineering.hansen.pianobot
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import org.pircbotx.{Configuration, PircBotX}
-import akka.actor.{ActorRef, Props, Actor, ActorSystem}
-
 object App {
   def main(args : Array[String]): Unit = {
-    Environment.initialize()
-//    Parser.selfTest()
-    val bot = Pianobot.start()
-    Thread.sleep(60000)
-    bot ! "stop"
-
+    Pianobot.start()
   }
 }

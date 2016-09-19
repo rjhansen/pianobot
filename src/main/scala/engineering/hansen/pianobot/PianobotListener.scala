@@ -49,6 +49,10 @@ class PianobotListener extends ListenerAdapter {
     getActor ! WrapDisconnectEvent(e)
   }
 
+  override def onPart(e: PartEvent) = {
+    getActor ! WrapPartEvent(e)
+  }
+
   override def onException(e: ExceptionEvent) = {
     System.err.println(e)
     System.err.println(e.getMessage)

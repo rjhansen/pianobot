@@ -33,7 +33,7 @@
             <TextField fx:id="botNick" maxHeight="-Infinity" maxWidth="1.7976931348623157E308"
                        promptText="Enter the bot nick here" GridPane.columnIndex="1" GridPane.halignment="RIGHT"
                        GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" GridPane.vgrow="ALWAYS"/>
-            <TextField fx:id="botPassword" promptText="Enter the bot's password here" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <PasswordField fx:id="botPassword" promptText="Enter the bot's password here" GridPane.columnIndex="1" GridPane.rowIndex="2" />
             <TextField fx:id="mp3dir" promptText="Enter your MP3 directory here" GridPane.columnIndex="1" GridPane.rowIndex="3" />
             <ComboBox fx:id="cbIRC" maxWidth="1.7976931348623157E308" prefWidth="150.0" promptText="Enter the IRC server here" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="4" GridPane.vgrow="NEVER">
             </ComboBox>

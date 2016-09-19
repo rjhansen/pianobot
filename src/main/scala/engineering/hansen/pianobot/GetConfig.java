@@ -22,6 +22,7 @@ import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
@@ -72,26 +73,34 @@ public class GetConfig extends Application implements Initializable {
     private Label helpText;
 
     @FXML
-    private TextField botPassword;
+    private PasswordField botPassword;
 
     private final Pattern nickRegex = Pattern.compile("^[A-Za-z0-9_]+$");
+    private final Pattern chanRegex = Pattern.compile("^#[A-Za-z0-9_]{3,20}$");
 
 
     private void validateForm() {
-        String _adminNick = adminNick.getText();
-        String _botNick = botNick.getText();
-        String _mp3dir = mp3dir.getText();
-        String _botPassword = botPassword.getText();
+        final String _adminNick = adminNick.getText();
+        final String _botNick = botNick.getText();
+        final String _mp3dir = mp3dir.getText();
+        final String _botPassword = botPassword.getText();
+        final String _chan = cbChan.getValue();
+        final String _server = cbIRC.getValue();
 
-        boolean goodAdminNick = nickRegex.matcher(_adminNick).matches();
-        boolean goodBotNick = nickRegex.matcher(_botNick).matches();
-        boolean goodBotPW = nickRegex.matcher(_botPassword).matches();
-        boolean goodMP3Path = Files.isDirectory(Paths.get(_mp3dir)) && Files.isReadable(Paths.get(_mp3dir));
+
+        final boolean goodAdminNick = nickRegex.matcher(_adminNick).matches();
+        final boolean goodBotNick = nickRegex.matcher(_botNick).matches();
+        final boolean goodBotPW = nickRegex.matcher(_botPassword).matches();
+        final boolean goodChan = chanRegex.matcher(_chan).matches();
+        boolean goodServer;
+        final boolean goodMP3Path = Files.isDirectory(Paths.get(_mp3dir)) && Files.isReadable(Paths.get(_mp3dir));
 
         try {
-            goodMP3Path = (_mp3dir.length() > 0) && (Files.isDirectory(Paths.get(_mp3dir)));
-        } catch (Exception e) {
-            // pass
+            //noinspection ResultOfMethodCallIgnored
+            java.net.InetAddress.getByName(_server);
+            goodServer = true;
+        } catch (java.net.UnknownHostException uhe) {
+            goodServer = false;
         }
 
         adminNick.setStyle("-fx-text-fill: " + (goodAdminNick ? "black" : "red") + ";");
@@ -107,6 +116,10 @@ public class GetConfig extends Application implements Initializable {
             helpText.setText("Enter the bot's IRC password");
         else if (! goodMP3Path)
             helpText.setText("Enter a path to an MP3 library");
+        else if (! goodServer)
+            helpText.setText("Enter an IRC server");
+        else if (! goodChan)
+            helpText.setText("Enter an IRC channel");
         else
             helpText.setText("Click 'Save' to save this configuration.");
         ok.setDisable( ! (goodAdminNick && goodBotNick && goodBotPW && goodMP3Path));
@@ -130,7 +143,7 @@ public class GetConfig extends Application implements Initializable {
             pw.println("password    = " + botPassword.getText());
             pw.println("IRC server  = " + cbIRC.getValue());
             pw.println("IRC channel = " + cbChan.getValue());
-	    pw.println("repertoire  = " + mp3dir.getText());
+            pw.println("repertoire  = " + mp3dir.getText());
             pw.close();
         }
         catch (Exception e) {
