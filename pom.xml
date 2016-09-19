@@ -187,7 +187,7 @@
                 </executions>
             </plugin>
 
-	    <!--
+
 		<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jarsigner-plugin</artifactId>
@@ -208,7 +208,6 @@
                     <keypass>${keystore.keypass}</keypass>
                 </configuration>
             </plugin>
--->
         </plugins>
     </build>
 </project>

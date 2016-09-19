@@ -1,7 +1,7 @@
 package engineering.hansen.pianobot
 
 /*
- * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
+ * Copyright (c) 2016, Rob Hansen <rob@hansen.engineering>.
  *
  * Permission to use, copy, modify, and/or distribute this software
  * for any purpose with or without fee is hereby granted, provided
@@ -18,14 +18,12 @@ package engineering.hansen.pianobot
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import java.time.LocalDateTime
 
 import org.pircbotx.{Configuration, PircBotX}
 import akka.actor.{Actor, ActorSystem, Props}
 import org.pircbotx.PircBotX
 import org.apache.logging.log4j.LogManager
 import org.pircbotx.hooks.events._
-import org.pircbotx.output.OutputChannel
 import java.time.{ZonedDateTime, ZoneId, ZoneOffset, LocalDateTime, Instant}
 import java.time.format.DateTimeFormatter
 import scala.collection.JavaConverters._
@@ -44,6 +42,7 @@ object Pianobot {
   case class HaveYouSeen(who: String) extends Response
 
   case class Send(msg: String)
+  case class Emote(msg: String)
 
   case class WrapConnectEvent(event: ConnectEvent)
   case class WrapConnectAttemptFailedEvent(event: ConnectAttemptFailedEvent)
@@ -88,46 +87,45 @@ class Pianobot extends Actor {
     .buildConfiguration()
   private val engine = new PircBotX(config)
   private var shuttingDown = false
-  private var output : OutputChannel = _
   private val thread: Thread = new Thread(new Runnable {
     override def run() = {
       engine.startBot()
     }
   })
   private val startupEmotes = Array[String](
-    "/me cracks his knuckles and begins playing ",
-    "/me rummages through his stash of sheet music for ",
-    "/me takes a pull off his beer and starts up with ",
-    "/me mumbles to himself, \"Negative, Ghostrider, the pattern is full,\" before pounding out ",
-    "/me realizes he's paid to play, and so begins doing his own take on "
+    "cracks his knuckles and begins playing ",
+    "rummages through his stash of sheet music for ",
+    "takes a pull off his beer and starts up with ",
+    "mumbles to himself, \"Negative, Ghostrider, the pattern is full,\" before pounding out ",
+    "realizes he's paid to play, and so begins doing his own take on "
     )
   private val endingEmotes = Array[String](
-    "/me finishes the piece with a flourish worthy of Warren Zevon.",
-    "/me reaches the end of the song.",
-    "/me pounds the finish like Bob Seger.",
-    "/me finishes the piece, then checks his set list to see what's next.",
-    "/me brings it to a finish worthy of a Julliard audition."
+    "finishes the piece with a flourish worthy of Warren Zevon.",
+    "reaches the end of the song.",
+    "pounds the finish like Bob Seger.",
+    "finishes the piece, then checks his set list to see what's next.",
+    "brings it to a finish worthy of a Julliard audition."
   )
   private val playingEmotes = Array[String](
-    "/me works his way through ",
-    "/me improvises a riff on ",
-    "/me takes it to a bridge nobody knew was in ",
-    "/me justifies his place among the minor gods of dive-bar pianists with ",
-    "/me plays improvised arpeggios through  "
+    "works his way through ",
+    "improvises a riff on ",
+    "takes it to a bridge nobody knew was in ",
+    "justifies his place among the minor gods of dive-bar pianists with ",
+    "plays improvised arpeggios through  "
   )
   private val knowsSong = Array[String](
-    "/me nods. \"Sure, part of every piano-fighter's repertoire.\"",
-    "/me mm-hmms. \"Played it at Mountain Stage, even.\"",
-    "/me looks offended.  \"Of course I know it!\"",
-    "/me nods. \"Why, you want to hear it?\"",
-    "/me answers by playing a few bars."
+    "nods. \"Sure, part of every piano-fighter's repertoire.\"",
+    "mm-hmms. \"Played it at Mountain Stage, even.\"",
+    "looks offended.  \"Of course I know it!\"",
+    "nods. \"Why, you want to hear it?\"",
+    "answers by playing a few bars."
   )
   private val stumpedSong = Array[String](
-    "/me looks frustrated, a sure sign of being stumped.",
-    "/me gives a curt, \"No.\"",
-    "/me avoids admitting ignorance by pretending he didn't hear the question.",
-    "/me says, \"No, and not even if you hum a few bars.\"",
-    "/me says, \"Not a standard part of the repertoire, no.\""
+    "looks frustrated, a sure sign of being stumped.",
+    "gives a curt, \"No.\"",
+    "avoids admitting ignorance by pretending he didn't hear the question.",
+    "says, \"No, and not even if you hum a few bars.\"",
+    "says, \"Not a standard part of the repertoire, no.\""
   )
   private var runPlayThread = true
   private val runPlayThreadSemaphore = new java.util.concurrent.Semaphore(1)
@@ -142,7 +140,7 @@ class Pianobot extends Actor {
               case Some((song, length)) =>
                 val emote = startupEmotes(prng.nextInt(startupEmotes.length))
                 var remaining = length
-                self ! Send(s"""$emote"$song".""")
+                self ! Emote(s"""$emote"$song".""")
                 while (remaining > 0) {
                   var delay = prng.nextInt(30) + 60
                   if (delay > remaining) delay = remaining
@@ -152,10 +150,10 @@ class Pianobot extends Actor {
                   remaining match {
                     case 0 =>
                       val msg = endingEmotes(prng.nextInt(endingEmotes.length))
-                      self ! Send (msg)
+                      self ! Emote(msg)
                     case _ =>
                       val msg = playingEmotes(prng.nextInt(playingEmotes.length))
-                      self ! Send (msg + s"$song")
+                      self ! Emote(msg + s"$song")
                   }
               }
           }
@@ -236,22 +234,23 @@ class Pianobot extends Actor {
       System.exit(0)
 
     case Send(msg) => engine.sendIRC().message(channel, msg)
+    case Emote(msg) => engine.sendIRC().action(channel, msg)
 
     case HaveYouSeen(nick) =>
       users.contains(nick) match {
-        case true => self ! Send("/me points in " + nick + "'s direction.")
+        case true => self ! Emote("points in " + nick + "'s direction.")
         case false => SQLUtilities.lastSaw(nick) match {
-          case None => self ! Send("/me shakes his head no.")
+          case None => self ! Emote("shakes his head no.")
           case Some(timestamp) =>
             val ltime = LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), ZoneId.systemDefault())
             val stamp = ZonedDateTime.ofLocal(ltime, ZoneId.systemDefault(), ZoneOffset.UTC)
               .format(DateTimeFormatter.RFC_1123_DATE_TIME)
-            self ! Send("/me recites with RFC1123-like precision, \"" + stamp + ", boss.\"")
+            self ! Emote("recites with RFC1123-like precision, \"" + stamp + ", boss.\"")
         }
       }
 
     case GoHome(speaker) =>
-      self ! Send("/me dutifully gathers up his music and goes home.")
+      self ! Emote("dutifully gathers up his music and goes home.")
       self ! "stop"
 
     case DoYouKnow(speaker, songname, artist) =>
@@ -270,14 +269,14 @@ class Pianobot extends Actor {
             case false => knows
           }
       }
-      self ! Send(msg)
+      self ! Emote(msg)
 
     case EnqueueSong(speaker, songname, artist) =>
       logger.info(s"asked to queue $songname")
       getQueueSize < 10 match {
         case false =>
           logger.info("rejected song request -- queue full")
-          self ! Send("/me shakes his head no. \"Have a full set already.\"")
+          self ! Emote("shakes his head no. \"Have a full set already.\"")
         case true =>
           (artist match {
             case Some(x) => Some(x)
@@ -290,17 +289,17 @@ class Pianobot extends Actor {
           }) match {
             case None =>
               logger.info("rejected song request -- song unknown")
-              self ! Send("/me shakes his head no.  \"Don't know it.\"")
+              self ! Emote("shakes his head no.  \"Don't know it.\"")
             case Some (band) => SQLUtilities.isSongKnown(band, songname) match {
               case false =>
                 logger.info("rejected song request -- song unknown")
-                self ! Send("/me shakes his head no.  \"Don't know it.\"")
+                self ! Emote("shakes his head no.  \"Don't know it.\"")
               case true =>
                 val length = SQLUtilities.getSongLength(band, songname)
                 length > 0 match {
                   case true =>
                     logger.info(s"enqueing $songname by $band")
-                    self ! Send("/me hurriedly adds it to his set list.")
+                    self ! Emote("hurriedly adds it to his set list.")
                     enqueue(songname, length)
                   case false =>
                     logger.info("rejected song request -- bad length")
@@ -314,20 +313,20 @@ class Pianobot extends Actor {
         case true =>
           speaker == target match {
             case true =>
-              val msg1 = "/me says slowly, \"You want to leave a message for ... yourself.\""
-              val msg2 = "/me calls over to Tom, \"No more booze for " + speaker + ".\""
-              self ! Send(msg1)
-              self ! Send(msg2)
+              val msg1 = "says slowly, \"You want to leave a message for ... yourself.\""
+              val msg2 = "calls over to Tom, \"No more booze for " + speaker + ".\""
+              self ! Emote(msg1)
+              self ! Emote(msg2)
             case false =>
-              val msg1 = "/me hollers, \"Hey, " + target + "! " + speaker + "'s looking for you!\""
-              self ! Send(msg1)
+              val msg1 = "hollers, \"Hey, " + target + "! " + speaker + "'s looking for you!\""
+              self ! Emote(msg1)
           }
         case false =>
           SQLUtilities.isNickKnown(target) match {
-            case false => self ! Send("/me shakes his head no. \"I don't know that person.\"")
+            case false => self ! Emote("shakes his head no. \"I don't know that person.\"")
             case true =>
               SQLUtilities.leaveMessageFor(speaker, target, msg)
-              self ! Send("/me writes it down. \"Yeah, yeah, I'll pass it on, maybe.\"")
+              self ! Emote("writes it down. \"Yeah, yeah, I'll pass it on, maybe.\"")
           }
       }
 
@@ -363,7 +362,7 @@ class Pianobot extends Actor {
           val nick = event.getUser.getNick
           val capset = SQLUtilities.getCapabilitiesFor(nick)
           capset.contains("admin") || capset.contains("friend") || event.getUser.isIrcop match {
-            case true => self ! Send(s"/me gives a nod of greeting to $nick.")
+            case true => self ! Emote(s"gives a nod of greeting to $nick.")
             case false => ;
           }
           SQLUtilities.sawPerson(nick)
@@ -381,7 +380,10 @@ class Pianobot extends Actor {
     case WrapMessageEvent(event) =>
       logger.info("received message event")
       try {
-        Parser(event.getUser.getNick, event.getMessage)
+        event.getUser.getNick == name match {
+          case true => ;
+          case false => Parser(event.getUser.getNick, event.getMessage)
+        }
       } catch {
         case e : Throwable =>
           logger.fatal(s"unhandled exception: ${e.toString}/${e.getMessage}" )
@@ -400,7 +402,8 @@ class Pianobot extends Actor {
 
     case WrapQuitEvent(event) =>
       logger.info("received quit event")
-      self ! "stop"
+      SQLUtilities.sawPerson(event.getUser.getNick)
+      users -= event.getUser.getNick
 
     case WrapUserListEvent(event) =>
       logger.info("received user list event")
