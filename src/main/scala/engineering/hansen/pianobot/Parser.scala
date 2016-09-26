@@ -41,7 +41,7 @@ object Parser {
     }
   }
 
-  def apply(speaker: String, msg: String) = {
+  def apply(isPublic: Boolean, speaker: String, msg: String) = {
     msg match {
       case filter(x) =>
         x.trim() match {

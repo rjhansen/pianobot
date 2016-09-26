@@ -123,7 +123,7 @@ object Environment {
   }
 
   val musicDB = Files.exists(Paths.get(appdir + "pianobot.db")) match {
-      case false => SQLUtilities.Initialize()
+      case false => SQLUtilities.Initialize
         appdir + "pianobot.db"
       case true =>
         Files.isDirectory(Paths.get(appdir + "pianobot.db")) match {
