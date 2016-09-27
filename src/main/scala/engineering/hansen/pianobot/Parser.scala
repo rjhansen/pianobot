@@ -1,7 +1,7 @@
 package engineering.hansen.pianobot
 
 /*
- * Copyright (c) 2016, Rob Hansen &lt;rob@hansen.engineering&gt;.
+ * Copyright (c) 2016, Rob Hansen <rob@hansen.engineering>.
  *
  * Permission to use, copy, modify, and/or distribute this software
  * for any purpose with or without fee is hereby granted, provided
@@ -58,7 +58,7 @@ object Parser {
             sendToActor(GoHome(speaker),
               s"$speaker told $botname to go home")
           case haveYouSeen(person) =>
-            sendToActor(HaveYouSeen(person),
+            sendToActor(HaveYouSeen(speaker, person),
               s"$speaker asked when $botname last saw $person")
           case _ => ;
         }
@@ -105,8 +105,8 @@ object Parser {
         "have you seen Alaric"
       )) yield s"${Environment.options("bot")}, $i")
         try {
-          Parser(Environment.options("admin"), j)
-          Parser("dummy-user", j)
+          Parser(true, Environment.options("admin"), j)
+          Parser(true, "dummy-user", j)
         } catch {
           case x : MatchError => println(j)
         }

@@ -24,67 +24,53 @@ import org.apache.logging.log4j.LogManager
 import akka.actor.ActorRef
 import engineering.hansen.pianobot.Pianobot._
 
-class PianobotListener extends ListenerAdapter {
-  private val logger = LogManager.getLogger(getClass)
-  private val server = Environment.options("irc server")
-  private var actor : Option[ActorRef] = None
-
-  def setActor(b: ActorRef) = {
-    actor = Some(b)
-  }
-
-  def getActor : ActorRef = {
-    actor.get
-  }
+class PianobotListener(actor: ActorRef) extends ListenerAdapter {
 
   override def onConnect(e: ConnectEvent) = {
-    getActor ! WrapConnectEvent(e)
+    actor ! WrapConnectEvent(e)
   }
 
   override def onConnectAttemptFailed(e: ConnectAttemptFailedEvent) = {
-    System.exit(0)
+    actor ! WrapConnectAttemptFailedEvent(e)
   }
 
   override def onDisconnect(e: DisconnectEvent) = {
-    getActor ! WrapDisconnectEvent(e)
+    actor ! WrapDisconnectEvent(e)
   }
 
   override def onPart(e: PartEvent) = {
-    getActor ! WrapPartEvent(e)
+    actor ! WrapPartEvent(e)
   }
 
   override def onException(e: ExceptionEvent) = {
-    System.err.println(e)
-    System.err.println(e.getMessage)
-    System.exit(1)
+    actor ! WrapExceptionEvent(e)
   }
 
   override def onNickAlreadyInUse(e: NickAlreadyInUseEvent) = {
-    System.err.println("Nick already in use")
-    System.exit(1)
+    actor ! WrapNickAlreadyInUseEvent(e)
   }
 
   override def onJoin(e: JoinEvent) = {
-    getActor ! WrapJoinEvent(e)
+    actor ! WrapJoinEvent(e)
   }
 
   override def onKick(e: KickEvent) = {
-    getActor ! WrapKickEvent(e)
+    actor ! WrapKickEvent(e)
   }
 
   override def onMessage(e: MessageEvent) = {
-    getActor ! WrapMessageEvent(e)
+    actor ! WrapMessageEvent(e)
   }
 
   override def onPrivateMessage(e: PrivateMessageEvent) = {
-    getActor ! WrapPrivateMessageEvent(e)
+    actor ! WrapPrivateMessageEvent(e)
   }
 
   override def onQuit(e: QuitEvent) = {
-    getActor ! WrapQuitEvent(e)
+    actor ! WrapQuitEvent(e)
   }
 
   override def onUserList(e: UserListEvent) = {
-    getActor ! WrapUserListEvent(e)
+    actor ! WrapUserListEvent(e)
   }
 }
